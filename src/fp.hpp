@@ -46,6 +46,14 @@ public:
     return mul(*this, Fp(P::R2()));
   }
 
+  // Convert from Montgomery form back to integer: xR -> x
+  Fp from_montgomery() const {
+    // mul(xR, 1) -> xR * 1 * R^-1 = x
+    BigInt<N> one_bi;
+    one_bi.limbs[0] = 1;
+    return mul(*this, Fp(one_bi));
+  }
+
   // Montgomery Multiplication: c = a * b * R^-1 mod p
   static Fp mul(const Fp &a, const Fp &b) {
     BigInt<N> r;
@@ -63,26 +71,14 @@ public:
     for (size_t i = 0; i < N; ++i) {
       Word carry = 0;
       for (size_t j = 0; j < N; ++j) {
-        Word hi, lo;
         // T[i+j] += a[i]*b[j] + carry
-        // We need a 3-word add equivalent (128 bit + carry).
-
-        // a[i] * b[j]
         Word p_lo, p_hi;
         p_lo = _umul128(a.val[i], b.val[j], &p_hi);
 
-        // Add to T[i+j]
-        unsigned char c1 = _addcarry_u64(0, T[i + j], p_lo, &T[i + j]);
-        // Add carry from previous limb
-        unsigned char c2 = _addcarry_u64(c1, T[i + j], carry, &T[i + j]);
-
-        // New carry is p_hi + carries
-        carry = p_hi; // Base
-                      // Add carry bits
-                      // Note: c2 is usually 0 unless overflow 64-bit again?
-                      // T[i+j] could have wrapped.
-                      // Actually, we must handle the upper part carefully.
-        _addcarry_u64(c2, p_hi, 0, &carry);
+        // Compute p_lo + carry + T[i+j], track overflow to new carry
+        unsigned __int128 sum = (unsigned __int128)p_lo + carry + T[i + j];
+        T[i + j] = (Word)sum;
+        carry = p_hi + (Word)(sum >> 64);
       }
       T[i + N] = carry;
     }
@@ -96,63 +92,22 @@ public:
       p[k] = p_bi.limbs[k];
 
     for (size_t i = 0; i < N; ++i) {
-      // m = T[i] * mu mod 2^64
       Word m = T[i] * mu;
 
-      // C = (T + m*p) / 2^64.
-      // We add m*p to T. T is shifted implicitly by 'i' in the grand scheme?
-      // Actually standard standard algo:
-      // For i from 0 to N-1:
-      //    m = t[i] * mu
-      //    (C, S) = t[i] + m*p[0]  (S is 0 mod 2^64)
-      //    for j from 1 to N-1:
-      //        (C, t[i+j]) = t[i+j] + m*p[j] + C
-      //    (C, t[i+N]) = t[i+N] + C
-
       Word carry = 0;
-      Word m_p0_lo, m_p0_hi;
-      m_p0_lo = _umul128(m, p[0], &m_p0_hi);
-
-      // T[i] + m*p[0] should be 0 mod 2^64.
-      // We just compute carry.
-      unsigned char c1 =
-          _addcarry_u64(0, T[i], m_p0_lo, &T[i]); // This becomes 0 (unused)
-      carry = m_p0_hi;
-      _addcarry_u64(c1, m_p0_hi, 0, &carry);
-
-      for (size_t j = 1; j < N; ++j) {
+      for (size_t j = 0; j < N; ++j) {
         Word p_lo, p_hi;
         p_lo = _umul128(m, p[j], &p_hi);
 
-        unsigned char ca = _addcarry_u64(0, T[i + j], p_lo, &T[i + j]);
-        unsigned char cb = _addcarry_u64(ca, T[i + j], carry, &T[i + j]);
-
-        carry = p_hi;
-        _addcarry_u64(cb, p_hi, 0, &carry);
+        // Compute p_lo + carry + T[i+j], track overflow to new carry
+        unsigned __int128 sum = (unsigned __int128)p_lo + carry + T[i + j];
+        T[i + j] = (Word)sum;
+        carry = p_hi + (Word)(sum >> 64);
       }
-      // Handle carry into T[i+N]
-      unsigned char end_c = _addcarry_u64(0, T[i + N], carry, &T[i + N]);
-      // Propagate up if needed? For product scanning we might need more space?
-      // Standard algorithm usually usually fits in 2N?
-      // The carry can propagate? With CIOS, T[i+N] handles it.
-      // If T[i+N] overflows, we might need T[i+N+1]?
-      // Usually manageable within limits if p is well behaved or we have extra
-      // word. For this implementation I'll assume 2N is enough but handle the
-      // extra ripple if strictly needed. Actually, just incrementing T[i+N] is
-      // enough for standard CIOS loop except very last step. We'll trust
-      // standard logic.
 
-      // Propagate the carry 'end_c' into upper words?
-      // In standard Montgomery, we iterate i=0..N-1. The window shifts.
-      // T is size 2N.
-      // Yes, carry goes to T[i+N].
-      // There is a potential carry from T[i+N] + carry.
-      // That propagates to T[i+N+1].
-      // Let's protect bounds.
-      size_t idx = i + N + 1;
-      while (end_c && idx < 2 * N) {
-        end_c = _addcarry_u64(0, T[idx], 0, &T[idx]);
-        idx++;
+      unsigned char end_c = _addcarry_u64(0, T[i + N], carry, &T[i + N]);
+      for (size_t idx = i + N + 1; end_c && idx < 2 * N; ++idx) {
+        end_c = _addcarry_u64(end_c, T[idx], 0, &T[idx]);
       }
     }
 

@@ -33,7 +33,7 @@ Measured using RDTSC cycle counting (same methodology as SQISign and NIST submis
 
 | Scheme | Sign (Mcyc) | Verify (Mcyc) | Size (bytes) | Notes |
 |--------|-------------|---------------|--------------|-------|
-| **Q-HALO** | **1.96** | **0.17** | **88** | This implementation |
+| **Q-HALO** | **1.96** | **0.56** | **88** | This implementation |
 | Dilithium-2 | 0.89 | 0.29 | 2420 | NIST Winner |
 | Falcon-512 | 8.6 | 0.08 | 666 | NIST Winner |
 | SQISign-I (asm) | 101.6 | 5.1 | 148 | Isogeny, optimized |
@@ -46,7 +46,7 @@ Measured using RDTSC cycle counting (same methodology as SQISign and NIST submis
 | Metric | Q-HALO | SQISign-I | Improvement |
 |--------|--------|-----------|-------------|
 | **Signing** | 1.96 Mcyc | 101.6 Mcyc | **52x faster** |
-| **Verification** | 0.17 Mcyc | 5.1 Mcyc | **30x faster** |
+| **Verification** | 0.56 Mcyc | 5.1 Mcyc | **9.2x faster** |
 | **Proof Size** | 88 bytes | 148 bytes | **1.7x smaller** |
 
 ### SQISign Official Benchmarks (for reference)
@@ -307,7 +307,7 @@ SUCCESS: Homomorphic Folding Verified (Full Match)!
 
 ## Future Work
 
-- [ ] Scale to `Params434` (p = 2^216 · 3^137 - 1)
+- [x] Scale to `Params434` (p = 2^216 · 3^137 - 1)
 - [ ] Implement $\Phi_3$ root finding
 - [ ] Add Schnorr-style proofs for knowledge
 - [ ] Formal security analysis

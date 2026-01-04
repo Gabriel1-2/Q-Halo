@@ -19,6 +19,17 @@ template <typename P> struct Fp2 {
 
   bool is_zero() const { return c0.data().is_zero() && c1.data().is_zero(); }
 
+  // Equality check for projective coordinate comparisons
+  static bool equal(const Fp2 &a, const Fp2 &b) {
+    for (size_t i = 0; i < P::N_LIMBS; ++i) {
+      if (a.c0.val.limbs[i] != b.c0.val.limbs[i])
+        return false;
+      if (a.c1.val.limbs[i] != b.c1.val.limbs[i])
+        return false;
+    }
+    return true;
+  }
+
   static Fp2 add(const Fp2 &a, const Fp2 &b) {
     return Fp2(FpT::add(a.c0, b.c0), FpT::add(a.c1, b.c1));
   }
