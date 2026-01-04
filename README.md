@@ -33,7 +33,7 @@ Measured using RDTSC cycle counting (same methodology as SQISign and NIST submis
 
 | Scheme | Sign (Mcyc) | Verify (Mcyc) | Size (bytes) | Notes |
 |--------|-------------|---------------|--------------|-------|
-| **Q-HALO** | **1.96** | **0.56** | **88** | This implementation |
+| **Q-HALO** | **1.96** | **1.27** | **88** | This implementation |
 | Dilithium-2 | 0.89 | 0.29 | 2420 | NIST Winner |
 | Falcon-512 | 8.6 | 0.08 | 666 | NIST Winner |
 | SQISign-I (asm) | 101.6 | 5.1 | 148 | Isogeny, optimized |
@@ -46,7 +46,7 @@ Measured using RDTSC cycle counting (same methodology as SQISign and NIST submis
 | Metric | Q-HALO | SQISign-I | Improvement |
 |--------|--------|-----------|-------------|
 | **Signing** | 1.96 Mcyc | 101.6 Mcyc | **52x faster** |
-| **Verification** | 0.56 Mcyc | 5.1 Mcyc | **9.2x faster** |
+| **Verification** | 3.82 Mcyc | 5.1 Mcyc | **1.33x faster** |
 | **Proof Size** | 88 bytes | 148 bytes | **1.7x smaller** |
 
 ### SQISign Official Benchmarks (for reference)
@@ -73,7 +73,7 @@ Measured using RDTSC cycle counting (same methodology as SQISign and NIST submis
 ### Run Benchmarks
 
 ```bash
-clang++ -std=c++20 -O3 src/run_benchmarks.cpp -o benchmark.exe
+clang++ -std=c++20 -O3 src/bench_pedersen_full.cpp -o benchmark.exe
 ./benchmark.exe
 ```
 
