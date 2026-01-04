@@ -2,7 +2,6 @@
 
 #include "edwards_fast.hpp"
 #include "fp2.hpp"
-#include <memory>
 
 namespace crypto {
 
@@ -14,16 +13,11 @@ public:
   using Fp2T = Fp2<Config>;
   using Curve = TwistedEdwardsFast<Config>;
   using Point = typename Curve::Point;
-  using Comb = FixedBaseComb<Config, 8>; // w=8 for ~1 Mcyc speed
 
 private:
   Curve curve;
   Point G; // Generator 1
   Point H; // Generator 2
-
-  // Precomputed tables
-  std::unique_ptr<Comb> tableG;
-  std::unique_ptr<Comb> tableH;
 
 public:
   // Initialize with default Edwards curve parameters
@@ -31,9 +25,11 @@ public:
       : curve([this]() {
           // Create curve parameters in Montgomery form
           Fp2T a, d;
+          // a = 6 (in Montgomery form)
           a.c0.val.limbs[0] = 6;
           a.c0 = a.c0.to_montgomery();
           a.c1 = Fp2T::FpT::zero();
+          // d = 4 (in Montgomery form)
           d.c0.val.limbs[0] = 4;
           d.c0 = d.c0.to_montgomery();
           d.c1 = Fp2T::FpT::zero();
@@ -41,12 +37,6 @@ public:
         }()) {
     // Initialize generators with fixed points
     InitGenerators();
-
-    // Precompute Tables (Expensive! ~5ms)
-    std::cout << "[Pedersen] Precomputing Fixed-Base Tables (w=8)...";
-    tableG = std::make_unique<Comb>(curve, G);
-    tableH = std::make_unique<Comb>(curve, H);
-    std::cout << " Done.\n";
   }
 
   void InitGenerators() {
@@ -88,17 +78,21 @@ public:
   // Commit to a value with a blinding factor (64-bit version)
   // C = [value] * G + [blind] * H
   Point Commit(uint64_t value, uint64_t blind) const {
-    BigInt<Config::N_LIMBS> v(value);
-    BigInt<Config::N_LIMBS> b(blind);
-    return CommitFull(v, b);
+    // [value] * G using fast scalar mul
+    Point vG = curve.ScalarMul64(G, value);
+
+    // [blind] * H using fast scalar mul
+    Point bH = curve.ScalarMul64(H, blind);
+
+    // C = vG + bH (single addition in projective)
+    return curve.Add(vG, bH);
   }
 
-  // Commit with full BigInt scalar using Fixed-Base Comb Tables
+  // Commit with full BigInt scalar
   Point CommitFull(const BigInt<Config::N_LIMBS> &value,
                    const BigInt<Config::N_LIMBS> &blind) const {
-    // Uses precomputed tables for massive speedup
-    Point vG = tableG->Mul(value);
-    Point bH = tableH->Mul(blind);
+    Point vG = curve.ScalarMul(G, value);
+    Point bH = curve.ScalarMul(H, blind);
     return curve.Add(vG, bH);
   }
 
@@ -107,7 +101,7 @@ public:
     return curve.Add(C1, C2);
   }
 
-  // Scalar multiply a commitment point using standard double-and-add (no table)
+  // Scalar multiply a commitment point with 64-bit scalar
   Point ScalarMul(const Point &C, uint64_t scalar) const {
     return curve.ScalarMul64(C, scalar);
   }
