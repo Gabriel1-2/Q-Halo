@@ -1,0 +1,28 @@
+# Compiled binaries
+*.exe
+*.out
+*.o
+*.obj
+
+# Debug files
+*.pdb
+*.ilk
+
+# IDE/Editor files
+.vs/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test outputs
+*.txt
+!README.md
+
+# Python cache
+__pycache__/
+*.pyc
